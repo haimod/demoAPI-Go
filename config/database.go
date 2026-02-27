@@ -17,7 +17,10 @@ func ConnectDatabase() {
 		log.Fatal("❌ DATABASE_URL environment variable is not set")
 	}
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // Tắt prepared statement — fix lỗi PgBouncer
+	}), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
 	}
