@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"demoAPI-Go/config"
 	"demoAPI-Go/models"
 	"net/http"
 	"strconv"
@@ -8,12 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetUsers returns all users
+// GetUsers returns all users from database
 // GET /api/users
 func GetUsers(c *gin.Context) {
+	var users []models.User
+	result := config.DB.Find(&users)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Success",
-		"data":    models.Users,
+		"data":    users,
 	})
 }
 
@@ -26,20 +34,20 @@ func GetUserByID(c *gin.Context) {
 		return
 	}
 
-	for _, user := range models.Users {
-		if user.ID == id {
-			c.JSON(http.StatusOK, gin.H{
-				"message": "Success",
-				"data":    user,
-			})
-			return
-		}
+	var user models.User
+	result := config.DB.First(&user, id)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Success",
+		"data":    user,
+	})
 }
 
-// CreateUser adds a new user
+// CreateUser adds a new user to the database
 // POST /api/users
 func CreateUser(c *gin.Context) {
 	var newUser models.User
@@ -49,14 +57,11 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	// Auto-increment ID
-	if len(models.Users) > 0 {
-		newUser.ID = models.Users[len(models.Users)-1].ID + 1
-	} else {
-		newUser.ID = 1
+	result := config.DB.Create(&newUser)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		return
 	}
-
-	models.Users = append(models.Users, newUser)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User created successfully",
@@ -64,7 +69,7 @@ func CreateUser(c *gin.Context) {
 	})
 }
 
-// DeleteUser removes a user by ID
+// DeleteUser removes a user by ID from the database
 // DELETE /api/users/:id
 func DeleteUser(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -73,15 +78,18 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	for i, user := range models.Users {
-		if user.ID == id {
-			models.Users = append(models.Users[:i], models.Users[i+1:]...)
-			c.JSON(http.StatusOK, gin.H{
-				"message": "User deleted successfully",
-			})
-			return
-		}
+	result := config.DB.Delete(&models.User{}, id)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		return
 	}
 
-	c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	if result.RowsAffected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User deleted successfully",
+	})
 }
