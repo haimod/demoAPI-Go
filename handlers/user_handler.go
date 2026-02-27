@@ -69,6 +69,43 @@ func CreateUser(c *gin.Context) {
 	})
 }
 
+// UpdateUser updates an existing user by ID
+// PUT /api/users/:id
+func UpdateUser(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Find existing user
+	var user models.User
+	result := config.DB.First(&user, id)
+	if result.Error != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Bind updated data
+	var input models.User
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update fields
+	config.DB.Model(&user).Updates(models.User{
+		Name:  input.Name,
+		Email: input.Email,
+		Phone: input.Phone,
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User updated successfully",
+		"data":    user,
+	})
+}
+
 // DeleteUser removes a user by ID from the database
 // DELETE /api/users/:id
 func DeleteUser(c *gin.Context) {
